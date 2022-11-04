@@ -76,7 +76,8 @@ public class NetHttpTransportTest extends TestCase {
   public void testExecute_mock() throws Exception {
     for (String method : METHODS) {
       boolean isPutOrPost = method.equals("PUT") || method.equals("POST");
-      MockHttpURLConnection connection = new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL));
+      MockHttpURLConnection connection =
+          MockHttpURLConnection.createSuccessful(new URL(HttpTesting.SIMPLE_URL), 200, null);
       connection.setRequestMethod(method);
       NetHttpRequest request = new NetHttpRequest(connection);
       setContent(request, null, "");
@@ -102,9 +103,8 @@ public class NetHttpTransportTest extends TestCase {
     byte[] buf = StringUtils.getBytesUtf8(body);
     for (String method : METHODS) {
       HttpURLConnection connection =
-          new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL))
-              .setResponseCode(200)
-              .setInputStream(new ByteArrayInputStream(buf));
+          MockHttpURLConnection.createSuccessful(
+              new URL(HttpTesting.SIMPLE_URL), 200, new ByteArrayInputStream(buf));
       connection.setRequestMethod(method);
       NetHttpRequest request = new NetHttpRequest(connection);
       setContent(request, "text/html", "");
@@ -117,10 +117,9 @@ public class NetHttpTransportTest extends TestCase {
     String incompleteBody = "" + "Fixed size body test.\r\n" + "Incomplete response.";
     byte[] buf = StringUtils.getBytesUtf8(incompleteBody);
     MockHttpURLConnection connection =
-        new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL))
-            .setResponseCode(200)
-            .addHeader("Content-Length", "205")
-            .setInputStream(new ByteArrayInputStream(buf));
+        MockHttpURLConnection.createSuccessful(
+                new URL(HttpTesting.SIMPLE_URL), 200, new ByteArrayInputStream(buf))
+            .addHeader("Content-Length", "205");
     connection.setRequestMethod("GET");
     NetHttpRequest request = new NetHttpRequest(connection);
     setContent(request, null, "");
@@ -142,10 +141,9 @@ public class NetHttpTransportTest extends TestCase {
     String incompleteBody = "" + "Fixed size body test.\r\n" + "Incomplete response.";
     byte[] buf = StringUtils.getBytesUtf8(incompleteBody);
     MockHttpURLConnection connection =
-        new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL))
-            .setResponseCode(200)
-            .addHeader("Content-Length", "205")
-            .setInputStream(new ByteArrayInputStream(buf));
+        MockHttpURLConnection.createSuccessful(
+                new URL(HttpTesting.SIMPLE_URL), 200, new ByteArrayInputStream(buf))
+            .addHeader("Content-Length", "205");
     connection.setRequestMethod("GET");
     NetHttpRequest request = new NetHttpRequest(connection);
     setContent(request, null, "");

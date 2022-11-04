@@ -38,7 +38,7 @@ import java.util.Map;
  * @author Yaniv Inbar
  */
 @Beta
-public class MockHttpURLConnection extends HttpURLConnection {
+public final class MockHttpURLConnection extends HttpURLConnection {
 
   /** Whether {@link #doOutput} was called. */
   private boolean doOutputCalled;
@@ -70,20 +70,68 @@ public class MockHttpURLConnection extends HttpURLConnection {
   @Deprecated public static final byte[] ERROR_BUF = new byte[5];
 
   /** The input stream. */
-  private InputStream inputStream = null;
+  private final InputStream inputStream;
 
   /** The error stream. */
-  private InputStream errorStream = null;
+  private final InputStream errorStream;
+
+  private boolean connected = false;
+
+  private final IOException responseCodeError;
 
   private Map<String, List<String>> headers = new LinkedHashMap<String, List<String>>();
 
   /** @param u the URL or {@code null} for none */
-  public MockHttpURLConnection(URL u) {
+  private MockHttpURLConnection(
+      URL u,
+      IOException responseCodeError,
+      int responseCode,
+      InputStream inputStream,
+      InputStream errorStream) {
     super(u);
+    this.responseCodeError = responseCodeError;
+    this.responseCode = responseCode;
+    this.inputStream = inputStream;
+    this.errorStream = errorStream;
+  }
+
+  public static MockHttpURLConnection createHanging(URL u) {
+    return new MockHttpURLConnection(
+        u, null, /* responseCode= */ -1, /* inputStream= */ null, /* errorStream= */ null);
+  }
+
+  public static MockHttpURLConnection createWithResponseCodeError(
+      URL u, IOException responseCodeError) {
+    return new MockHttpURLConnection(
+        u,
+        responseCodeError,
+        /* responseCode= */ -1,
+        /* inputStream= */ null,
+        /* errorStream= */ null);
+  }
+
+  public static MockHttpURLConnection createSuccessful(
+      URL u, int responseCode, InputStream inputStream) {
+    if (responseCode > 399) {
+      throw new IllegalArgumentException(
+          "Response code must be at most 399, but was: " + responseCode);
+    }
+    return new MockHttpURLConnection(u, null, responseCode, inputStream, /* errorStream= */ null);
+  }
+
+  public static MockHttpURLConnection createFailed(
+      URL u, int responseCode, InputStream errorStream) {
+    if (responseCode < 400) {
+      throw new IllegalArgumentException(
+          "Response code must be 400 or higher, but was: " + responseCode);
+    }
+    return new MockHttpURLConnection(u, null, responseCode, /* inputStream= */ null, errorStream);
   }
 
   @Override
-  public void disconnect() {}
+  public void disconnect() {
+    connected = false;
+  }
 
   @Override
   public boolean usingProxy() {
@@ -91,10 +139,15 @@ public class MockHttpURLConnection extends HttpURLConnection {
   }
 
   @Override
-  public void connect() throws IOException {}
+  public void connect() throws IOException {
+    connected = true;
+  }
 
   @Override
   public int getResponseCode() throws IOException {
+    if (responseCodeError != null) {
+      throw responseCodeError;
+    }
     return responseCode;
   }
 
@@ -127,13 +180,6 @@ public class MockHttpURLConnection extends HttpURLConnection {
     return this;
   }
 
-  /** Sets the HTTP response status code. */
-  public MockHttpURLConnection setResponseCode(int responseCode) {
-    Preconditions.checkArgument(responseCode >= -1);
-    this.responseCode = responseCode;
-    return this;
-  }
-
   /**
    * Sets a custom response header.
    *
@@ -152,36 +198,6 @@ public class MockHttpURLConnection extends HttpURLConnection {
     return this;
   }
 
-  /**
-   * Sets the input stream.
-   *
-   * <p>To prevent incidental overwrite, only the first non-null assignment is honored.
-   *
-   * @since 1.20
-   */
-  public MockHttpURLConnection setInputStream(InputStream is) {
-    Preconditions.checkNotNull(is);
-    if (inputStream == null) {
-      inputStream = is;
-    }
-    return this;
-  }
-
-  /**
-   * Sets the error stream.
-   *
-   * <p>To prevent incidental overwrite, only the first non-null assignment is honored.
-   *
-   * @since 1.20
-   */
-  public MockHttpURLConnection setErrorStream(InputStream is) {
-    Preconditions.checkNotNull(is);
-    if (errorStream == null) {
-      errorStream = is;
-    }
-    return this;
-  }
-
   @Override
   public InputStream getInputStream() throws IOException {
     if (responseCode < 400) {
@@ -192,7 +208,7 @@ public class MockHttpURLConnection extends HttpURLConnection {
 
   @Override
   public InputStream getErrorStream() {
-    return errorStream;
+    return connected ? errorStream : null;
   }
 
   @Override

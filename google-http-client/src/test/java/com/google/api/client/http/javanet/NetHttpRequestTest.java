@@ -75,7 +75,8 @@ public class NetHttpRequestTest {
   }
 
   private static void postWithTimeout(int timeout) throws Exception {
-    MockHttpURLConnection connection = new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL));
+    MockHttpURLConnection connection =
+        MockHttpURLConnection.createHanging(new URL(HttpTesting.SIMPLE_URL));
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     InputStream is = NetHttpRequestTest.class.getClassLoader().getResourceAsStream("file.txt");
@@ -88,18 +89,14 @@ public class NetHttpRequestTest {
   @Test
   public void testInterruptedWriteWithResponse() throws Exception {
     MockHttpURLConnection connection =
-        new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL)) {
-          @Override
-          public OutputStream getOutputStream() throws IOException {
-            return new OutputStream() {
-              @Override
-              public void write(int b) throws IOException {
-                throw new IOException("Error writing request body to server");
-              }
-            };
-          }
-        };
-    connection.setResponseCode(401);
+        MockHttpURLConnection.createFailed(new URL(HttpTesting.SIMPLE_URL), 401, null)
+            .setOutputStream(
+                new OutputStream() {
+                  @Override
+                  public void write(int b) throws IOException {
+                    throw new IOException("Error writing request body to server");
+                  }
+                });
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     InputStream is = NetHttpRequestTest.class.getClassLoader().getResourceAsStream("file.txt");
@@ -113,17 +110,14 @@ public class NetHttpRequestTest {
   @Test
   public void testInterruptedWriteWithoutResponse() throws Exception {
     MockHttpURLConnection connection =
-        new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL)) {
-          @Override
-          public OutputStream getOutputStream() throws IOException {
-            return new OutputStream() {
-              @Override
-              public void write(int b) throws IOException {
-                throw new IOException("Error writing request body to server");
-              }
-            };
-          }
-        };
+        MockHttpURLConnection.createHanging(new URL(HttpTesting.SIMPLE_URL))
+            .setOutputStream(
+                new OutputStream() {
+                  @Override
+                  public void write(int b) throws IOException {
+                    throw new IOException("Error writing request body to server");
+                  }
+                });
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     InputStream is = NetHttpRequestTest.class.getClassLoader().getResourceAsStream("file.txt");
@@ -141,22 +135,20 @@ public class NetHttpRequestTest {
   @Test
   public void testInterruptedWriteErrorOnResponse() throws Exception {
     MockHttpURLConnection connection =
-        new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL)) {
-          @Override
-          public OutputStream getOutputStream() throws IOException {
-            return new OutputStream() {
-              @Override
-              public void write(int b) throws IOException {
-                throw new IOException("Error writing request body to server");
-              }
-            };
-          }
+        MockHttpURLConnection.createWithResponseCodeError(
+                new URL(HttpTesting.SIMPLE_URL), new IOException("Error parsing response code"))
+            .setOutputStream(
+                new OutputStream() {
+                  @Override
+                  public void write(int b) throws IOException {
+                    throw new IOException("Error writing request body to server");
+                  }
 
-          @Override
-          public int getResponseCode() throws IOException {
-            throw new IOException("Error parsing response code");
-          }
-        };
+                  // @Override
+                  // public int getResponseCode() throws IOException {
+                  //   throw new IOException("Error parsing response code");
+                  // }
+                });
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     InputStream is = NetHttpRequestTest.class.getClassLoader().getResourceAsStream("file.txt");
@@ -174,22 +166,19 @@ public class NetHttpRequestTest {
   @Test
   public void testErrorOnClose() throws Exception {
     MockHttpURLConnection connection =
-        new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL)) {
-          @Override
-          public OutputStream getOutputStream() throws IOException {
-            return new OutputStream() {
-              @Override
-              public void write(int b) throws IOException {
-                return;
-              }
+        MockHttpURLConnection.createFailed(new URL(HttpTesting.SIMPLE_URL), 400, null)
+            .setOutputStream(
+                new OutputStream() {
+                  @Override
+                  public void write(int b) throws IOException {
+                    return;
+                  }
 
-              @Override
-              public void close() throws IOException {
-                throw new IOException("Error during close");
-              }
-            };
-          }
-        };
+                  @Override
+                  public void close() throws IOException {
+                    throw new IOException("Error during close");
+                  }
+                });
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     InputStream is = NetHttpRequestTest.class.getClassLoader().getResourceAsStream("file.txt");
@@ -206,7 +195,8 @@ public class NetHttpRequestTest {
 
   @Test
   public void testChunkedLengthSet() throws Exception {
-    MockHttpURLConnection connection = new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL));
+    MockHttpURLConnection connection =
+        MockHttpURLConnection.createSuccessful(new URL(HttpTesting.SIMPLE_URL), 200, null);
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     InputStream is = NetHttpRequestTest.class.getClassLoader().getResourceAsStream("file.txt");
@@ -221,7 +211,8 @@ public class NetHttpRequestTest {
 
   @Test
   public void testChunkedLengthNotSet() throws Exception {
-    MockHttpURLConnection connection = new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL));
+    MockHttpURLConnection connection =
+        MockHttpURLConnection.createSuccessful(new URL(HttpTesting.SIMPLE_URL), 200, null);
     connection.setRequestMethod("POST");
     NetHttpRequest request = new NetHttpRequest(connection);
     HttpContent content =
@@ -237,7 +228,8 @@ public class NetHttpRequestTest {
   // see https://github.com/googleapis/google-http-java-client/issues/1471 for more details
   @Test
   public void testDeleteSetsContentLengthToZeroWithoutContent() throws Exception {
-    MockHttpURLConnection connection = new MockHttpURLConnection(new URL(HttpTesting.SIMPLE_URL));
+    MockHttpURLConnection connection =
+        MockHttpURLConnection.createSuccessful(new URL(HttpTesting.SIMPLE_URL), 200, null);
     connection.setRequestMethod("DELETE");
     NetHttpRequest request = new NetHttpRequest(connection);
     request.execute();
